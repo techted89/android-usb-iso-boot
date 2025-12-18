@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        tools:context=".ui.MainActivity">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BootMaster"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- ISO Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1. Select ISO Image"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btnSelectIso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select ISO File"
+            android:layout_marginTop="8dp"/>
+
+        <TextView
+            android:id="@+id/tvSelectedIso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No ISO selected"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- USB Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2. Select USB Drive"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btnRefreshDrives"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Refresh"
+            android:layout_gravity="end"
+            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+
+        <Spinner
+            android:id="@+id/spinnerUsbDrives"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="WARNING: All data on the selected drive will be erased!"
+            android:textColor="#D32F2F"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Boot Options -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3. Boot Options"
+            android:textStyle="bold"/>
+
+        <RadioGroup
+            android:id="@+id/rgBootMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/rbUefi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UEFI (GPT)"
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/rbLegacy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Legacy (MBR)"/>
+        </RadioGroup>
+
+        <!-- Extra Files -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4. Additional Drivers/Files"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btnAddFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Files/Drivers"
+            android:layout_marginTop="8dp"/>
+
+        <TextView
+            android:id="@+id/tvAddedFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No additional files added"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Action -->
+        <Button
+            android:id="@+id/btnCreate"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="Create Bootable USB"
+            android:backgroundTint="#2E7D32"/>
+
+        <!-- Progress -->
+        <LinearLayout
+            android:id="@+id/layoutProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Initializing..."
+                android:textAlignment="center"/>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:indeterminate="true"/>
+
+             <TextView
+                android:id="@+id/tvLogs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Logs:"
+                android:typeface="monospace"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

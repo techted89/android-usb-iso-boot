@@ -1,0 +1,134 @@
+package com.techtedapps.bootmaster.ui
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.widget.ArrayAdapter
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.work.WorkInfo
+import com.techtedapps.bootmaster.R
+import com.techtedapps.bootmaster.data.UsbDrive
+import com.techtedapps.bootmaster.databinding.ActivityMainBinding
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+    private val viewModel: MainViewModel by viewModels()
+
+    private val selectIsoLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            viewModel.selectIso(it)
+        }
+    }
+
+    private val selectFilesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            uris.forEach {
+                contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            viewModel.addFiles(uris)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setupObservers()
+        setupListeners()
+
+        // Initial refresh
+        viewModel.refreshDrives()
+    }
+
+    private fun setupObservers() {
+        viewModel.usbDrives.observe(this) { drives ->
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, drives)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            binding.spinnerUsbDrives.adapter = adapter
+        }
+
+        viewModel.selectedIsoUri.observe(this) { uri ->
+            binding.tvSelectedIso.text = uri?.path ?: "No ISO selected"
+        }
+
+        viewModel.addedFiles.observe(this) { files ->
+            binding.tvAddedFiles.text = "${files.size} additional files added"
+        }
+
+        viewModel.outputWorkInfos.observe(this) { workInfos ->
+            if (workInfos.isNullOrEmpty()) return@observe
+
+            val workInfo = workInfos[0]
+            val progress = workInfo.progress.getInt("progress", 0)
+            val status = workInfo.progress.getString("status") ?: "Working..."
+            val logs = workInfo.progress.getString("logs") ?: ""
+
+            when (workInfo.state) {
+                WorkInfo.State.RUNNING -> {
+                    binding.layoutProgress.visibility = android.view.View.VISIBLE
+                    binding.progressBar.isIndeterminate = progress == 0
+                    binding.progressBar.progress = progress
+                    binding.tvStatus.text = status
+                    binding.tvLogs.text = logs
+                    binding.btnCreate.isEnabled = false
+                }
+                WorkInfo.State.SUCCEEDED -> {
+                    binding.layoutProgress.visibility = android.view.View.VISIBLE
+                    binding.progressBar.progress = 100
+                    binding.tvStatus.text = "Success!"
+                    binding.tvLogs.text = logs + "\nDone."
+                    binding.btnCreate.isEnabled = true
+                    Toast.makeText(this, "Bootable USB Created Successfully!", Toast.LENGTH_LONG).show()
+                }
+                WorkInfo.State.FAILED -> {
+                    binding.layoutProgress.visibility = android.view.View.VISIBLE
+                    binding.tvStatus.text = "Failed"
+                    val error = workInfo.outputData.getString("error") ?: "Unknown error"
+                    binding.tvLogs.text = logs + "\nError: $error"
+                    binding.btnCreate.isEnabled = true
+                    Toast.makeText(this, "Failed: $error", Toast.LENGTH_LONG).show()
+                }
+                else -> {
+                    // IDLE etc
+                }
+            }
+        }
+    }
+
+    private fun setupListeners() {
+        binding.btnSelectIso.setOnClickListener {
+            selectIsoLauncher.launch(arrayOf("application/x-iso9660-image", "application/octet-stream", "*/*"))
+        }
+
+        binding.btnRefreshDrives.setOnClickListener {
+            viewModel.refreshDrives()
+        }
+
+        binding.btnAddFiles.setOnClickListener {
+            selectFilesLauncher.launch(arrayOf("*/*"))
+        }
+
+        binding.btnCreate.setOnClickListener {
+            val selectedDrive = binding.spinnerUsbDrives.selectedItem as? UsbDrive
+            if (selectedDrive == null) {
+                Toast.makeText(this, "Please select a USB drive", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (viewModel.selectedIsoUri.value == null) {
+                Toast.makeText(this, "Please select an ISO file", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val isUefi = binding.rbUefi.isChecked
+            viewModel.createBootableUsb(selectedDrive, isUefi)
+        }
+    }
+}
