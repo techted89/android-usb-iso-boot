@@ -17,7 +17,8 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
     override fun doWork(): Result {
         val isoUriString = inputData.getString("iso_uri")
         val usbDevice = inputData.getString("usb_device") // /dev/sdX
-        val isUefi = inputData.getBoolean("is_uefi", true)
+        val isTargetUefi = inputData.getBoolean("is_uefi", true) // Originally named is_uefi in ViewModel
+        val isGpt = inputData.getBoolean("is_gpt", true)
         val addedFiles = inputData.getStringArray("added_files")
 
         if (isoUriString == null || usbDevice == null) {
@@ -49,30 +50,49 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
             // Fdisk script builder
             val fdiskScript = StringBuilder()
 
-            if (isUefi) {
-                // UEFI: GPT/Hybrid Setup per user guide
-                // Guide: o -> n -> p -> 1 -> default -> +100M -> t -> 1 -> ef -> n -> p -> 2 -> default -> default -> a -> 2 -> w
-                fdiskScript.append("o\n") // Create DOS label
+            if (isGpt) {
+                // GPT Scheme
+                // g: create a new empty GPT partition table
+                fdiskScript.append("g\n")
 
-                // Part 1: ESP (100MB)
-                fdiskScript.append("n\n").append("p\n").append("1\n").append("\n").append("+100M\n")
+                if (isTargetUefi) {
+                    // UEFI Standard: ESP + Data
+                    // Part 1: ESP (100MB) - Type 1 (EFI System) in GPT fdisk usually
+                    fdiskScript.append("n\n").append("1\n").append("\n").append("+100M\n")
+                    fdiskScript.append("t\n").append("1\n").append("1\n") // Type 1 = EFI System (check fdisk version codes, often 1 or ef00)
 
-                // Type: EFI (Explicitly select partition 1)
-                fdiskScript.append("t\n").append("1\n").append("ef\n")
+                    // Part 2: Data
+                    fdiskScript.append("n\n").append("2\n").append("\n").append("\n")
+                    // Type 2 = Microsoft Basic Data (default)
 
-                // Part 2: Data (Rest of disk)
-                fdiskScript.append("n\n").append("p\n").append("2\n").append("\n").append("\n")
-
-                // Bootable flag on 2
-                fdiskScript.append("a\n").append("2\n")
-
-                fdiskScript.append("w\n") // Write
+                    fdiskScript.append("w\n")
+                } else {
+                     // GPT for Legacy (BIOS Boot Partition required for GRUB usually, but Windows just needs Data)
+                     // We will just create one big data partition for simplicity if they chose GPT+Legacy (rare)
+                     fdiskScript.append("n\n").append("1\n").append("\n").append("\n")
+                     fdiskScript.append("w\n")
+                }
             } else {
-                // Legacy: MBR
-                fdiskScript.append("o\n")
-                fdiskScript.append("n\n").append("p\n").append("1\n").append("\n").append("\n")
-                fdiskScript.append("a\n").append("1\n")
-                fdiskScript.append("w\n")
+                // MBR Scheme (Legacy or Hybrid)
+                fdiskScript.append("o\n") // DOS Label
+
+                if (isTargetUefi) {
+                    // Hybrid MBR for UEFI (The prompt guide's specific method)
+                    // Part 1: ESP (100MB)
+                    fdiskScript.append("n\n").append("p\n").append("1\n").append("\n").append("+100M\n")
+                    fdiskScript.append("t\n").append("1\n").append("ef\n") // ef = EFI
+
+                    // Part 2: Data
+                    fdiskScript.append("n\n").append("p\n").append("2\n").append("\n").append("\n")
+                    fdiskScript.append("a\n").append("2\n") // Bootable
+
+                    fdiskScript.append("w\n")
+                } else {
+                    // Standard Legacy MBR
+                    fdiskScript.append("n\n").append("p\n").append("1\n").append("\n").append("\n")
+                    fdiskScript.append("a\n").append("1\n")
+                    fdiskScript.append("w\n")
+                }
             }
 
             val fdiskRes = exec("fdisk $usbDevice", input = fdiskScript.toString())
@@ -93,14 +113,17 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
             val part1 = if (usbDevice.contains("mmcblk") || usbDevice.contains("nvme")) "${usbDevice}p1" else "${usbDevice}1"
             val part2 = if (usbDevice.contains("mmcblk") || usbDevice.contains("nvme")) "${usbDevice}p2" else "${usbDevice}2"
 
-            if (isUefi) {
+            // Logic: If Dual Partition (Target UEFI + GPT OR Target UEFI + Hybrid MBR)
+            val isDualPartition = (isTargetUefi && isGpt) || (isTargetUefi && !isGpt)
+
+            if (isDualPartition) {
                 // Format ESP
                 checkSuccess(exec("mkfs.vfat -F 32 $part1"), "Failed to format ESP ($part1)")
 
                 // Format Data
-                // Attempt ext4, fall back if needed, but throwing error is safer than silent fail
                 checkSuccess(exec("mkfs.ext4 $part2"), "Failed to format Data partition ($part2)")
             } else {
+                // Single Partition (Legacy MBR or GPT-Data-Only)
                 checkSuccess(exec("mkfs.vfat -F 32 $part1"), "Failed to format partition ($part1)")
             }
 
@@ -117,7 +140,7 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
             val mntData = "$baseMount/usb_data"
             val mntIso = "$baseMount/iso_mount"
 
-            if (isUefi) {
+            if (isDualPartition) {
                 checkSuccess(exec("mount $part1 $mntEsp"), "Failed to mount ESP ($part1)")
                 checkSuccess(exec("mount $part2 $mntData"), "Failed to mount Data partition ($part2)")
             } else {
@@ -148,7 +171,7 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
             }
 
             // UEFI cleanup/setup
-            if (isUefi) {
+            if (isTargetUefi) {
                 updateProgress(90, "Configuring Bootloader...")
                 // Copy EFI folder to ESP
                 val checkEfi = exec("test -d $mntData/EFI")

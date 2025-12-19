@@ -115,6 +115,10 @@ class MainActivity : AppCompatActivity() {
             selectFilesLauncher.launch(arrayOf("*/*"))
         }
 
+        binding.btnFileBrowser.setOnClickListener {
+            startActivity(Intent(this, FileBrowserActivity::class.java))
+        }
+
         binding.btnCreate.setOnClickListener {
             val selectedDrive = binding.spinnerUsbDrives.selectedItem as? UsbDrive
             if (selectedDrive == null) {
@@ -127,8 +131,28 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val isUefi = binding.rbUefi.isChecked
-            viewModel.createBootableUsb(selectedDrive, isUefi)
+            val isTargetUefi = binding.rbTargetUefi.isChecked
+            val isGpt = binding.rbSchemeGpt.isChecked
+
+            // Validate Logic
+            if (isTargetUefi && !isGpt) {
+                 Toast.makeText(this, "Recommendation: Use GPT for UEFI", Toast.LENGTH_LONG).show()
+            }
+            if (!isTargetUefi && isGpt) {
+                 Toast.makeText(this, "Warning: GPT may not boot on Legacy BIOS", Toast.LENGTH_LONG).show()
+            }
+
+            viewModel.createBootableUsb(selectedDrive, isTargetUefi, isGpt)
+        }
+
+        binding.rgTargetSystem.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == R.id.rbTargetUefi) {
+                binding.rbSchemeGpt.isChecked = true
+                binding.tvBootInfo.text = "Info: GPT is standard for UEFI systems (Windows 8+, Modern Linux)."
+            } else {
+                binding.rbSchemeMbr.isChecked = true
+                binding.tvBootInfo.text = "Info: MBR is standard for Legacy BIOS (Old Windows, Old PCs)."
+            }
         }
     }
 }

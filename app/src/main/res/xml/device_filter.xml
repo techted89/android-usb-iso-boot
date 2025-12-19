@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Filter for USB Mass Storage devices -->
+    <!-- Class 08h = Mass Storage -->
+    <usb-device class="8" />
+</resources>

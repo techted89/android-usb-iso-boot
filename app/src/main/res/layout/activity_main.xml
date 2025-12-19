@@ -77,26 +77,70 @@
             android:text="3. Boot Options"
             android:textStyle="bold"/>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Target System Type"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"/>
+
         <RadioGroup
-            android:id="@+id/rgBootMode"
+            android:id="@+id/rgTargetSystem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbTargetUefi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UEFI (non-CSM)"
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/rbTargetLegacy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Legacy BIOS"/>
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Partition Scheme"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"/>
+
+        <RadioGroup
+            android:id="@+id/rgPartitionScheme"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginBottom="16dp">
 
             <RadioButton
-                android:id="@+id/rbUefi"
+                android:id="@+id/rbSchemeGpt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="UEFI (GPT)"
+                android:text="GPT"
                 android:checked="true"/>
 
             <RadioButton
-                android:id="@+id/rbLegacy"
+                android:id="@+id/rbSchemeMbr"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Legacy (MBR)"/>
+                android:text="MBR"/>
         </RadioGroup>
+
+        <TextView
+            android:id="@+id/tvBootInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Info: GPT is recommended for UEFI. MBR is for older BIOS."
+            android:textColor="#1976D2"
+            android:background="#E3F2FD"
+            android:padding="8dp"
+            android:layout_marginBottom="16dp"/>
 
         <!-- Extra Files -->
         <TextView
@@ -120,6 +164,14 @@
             android:layout_marginBottom="24dp"/>
 
         <!-- Action -->
+        <Button
+            android:id="@+id/btnFileBrowser"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Browse USB Files"
+            android:layout_marginBottom="16dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
         <Button
             android:id="@+id/btnCreate"
             android:layout_width="match_parent"

@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val usbRepository = UsbRepository()
+    private val usbRepository = UsbRepository(application)
     private val workManager = WorkManager.getInstance(application)
 
     private val _usbDrives = MutableLiveData<List<UsbDrive>>()
@@ -50,7 +50,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _addedFiles.value = current
     }
 
-    fun createBootableUsb(drive: UsbDrive, isUefi: Boolean) {
+    fun createBootableUsb(drive: UsbDrive, isTargetUefi: Boolean, isGpt: Boolean) {
         val isoUri = _selectedIsoUri.value ?: return
 
         // Pass URI string. The Worker will need to handle file access.
@@ -59,7 +59,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val inputData = Data.Builder()
             .putString("iso_uri", isoUri.toString())
             .putString("usb_device", drive.path) // /dev/sdb
-            .putBoolean("is_uefi", isUefi)
+            .putBoolean("is_uefi", isTargetUefi) // Kept for worker compat, primarily means "Use ESP" logic
+            .putBoolean("is_gpt", isGpt)
             .putStringArray("added_files", addedFileUris)
             .build()
 
