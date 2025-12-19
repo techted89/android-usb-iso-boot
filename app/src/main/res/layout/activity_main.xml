@@ -12,6 +12,15 @@
         android:orientation="vertical"
         tools:context=".ui.MainActivity">
 
+        <Button
+            android:id="@+id/btnFormatTool"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tool: Quick Format"
+            android:layout_gravity="end"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -27,12 +36,27 @@
             android:text="1. Select ISO Image"
             android:textStyle="bold"/>
 
-        <Button
-            android:id="@+id/btnSelectIso"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select ISO File"
-            android:layout_marginTop="8dp"/>
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/btnSelectIso"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Select ISO File"/>
+
+            <Button
+                android:id="@+id/btnDownloadIso"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Download"
+                android:layout_marginStart="8dp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvSelectedIso"
@@ -141,6 +165,42 @@
             android:background="#E3F2FD"
             android:padding="8dp"
             android:layout_marginBottom="16dp"/>
+
+        <!-- Persistence (Linux) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Linux Persistence (Experimental)"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"/>
+
+        <CheckBox
+            android:id="@+id/cbPersistence"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Enable Persistence (casper-rw)"/>
+
+        <LinearLayout
+            android:id="@+id/layoutPersistence"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvPersistenceSize"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Size: 1 GB"/>
+
+            <SeekBar
+                android:id="@+id/seekBarPersistence"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="10"
+                android:progress="1"
+                android:layout_marginBottom="16dp"/>
+        </LinearLayout>
 
         <!-- Extra Files -->
         <TextView

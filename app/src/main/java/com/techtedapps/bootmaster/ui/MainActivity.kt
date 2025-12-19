@@ -107,6 +107,14 @@ class MainActivity : AppCompatActivity() {
             selectIsoLauncher.launch(arrayOf("application/x-iso9660-image", "application/octet-stream", "*/*"))
         }
 
+        binding.btnDownloadIso.setOnClickListener {
+            startActivity(Intent(this, DownloadActivity::class.java))
+        }
+
+        binding.btnFormatTool.setOnClickListener {
+            startActivity(Intent(this, FormatActivity::class.java))
+        }
+
         binding.btnRefreshDrives.setOnClickListener {
             viewModel.refreshDrives()
         }
@@ -142,7 +150,13 @@ class MainActivity : AppCompatActivity() {
                  Toast.makeText(this, "Warning: GPT may not boot on Legacy BIOS", Toast.LENGTH_LONG).show()
             }
 
-            viewModel.createBootableUsb(selectedDrive, isTargetUefi, isGpt)
+            val persistenceSizeGb = if (binding.cbPersistence.isChecked) {
+                if (binding.seekBarPersistence.progress < 1) 1 else binding.seekBarPersistence.progress
+            } else {
+                0
+            }
+
+            viewModel.createBootableUsb(selectedDrive, isTargetUefi, isGpt, persistenceSizeGb)
         }
 
         binding.rgTargetSystem.setOnCheckedChangeListener { _, checkedId ->
@@ -154,5 +168,19 @@ class MainActivity : AppCompatActivity() {
                 binding.tvBootInfo.text = "Info: MBR is standard for Legacy BIOS (Old Windows, Old PCs)."
             }
         }
+
+        binding.cbPersistence.setOnCheckedChangeListener { _, isChecked ->
+            binding.layoutPersistence.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
+        }
+
+        binding.seekBarPersistence.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                // Minimum 1GB
+                val size = if (progress < 1) 1 else progress
+                binding.tvPersistenceSize.text = "Size: $size GB"
+            }
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+        })
     }
 }

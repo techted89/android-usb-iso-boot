@@ -50,7 +50,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _addedFiles.value = current
     }
 
-    fun createBootableUsb(drive: UsbDrive, isTargetUefi: Boolean, isGpt: Boolean) {
+    fun createBootableUsb(drive: UsbDrive, isTargetUefi: Boolean, isGpt: Boolean, persistenceGb: Int) {
         val isoUri = _selectedIsoUri.value ?: return
 
         // Pass URI string. The Worker will need to handle file access.
@@ -61,6 +61,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString("usb_device", drive.path) // /dev/sdb
             .putBoolean("is_uefi", isTargetUefi) // Kept for worker compat, primarily means "Use ESP" logic
             .putBoolean("is_gpt", isGpt)
+            .putInt("persistence_gb", persistenceGb)
             .putStringArray("added_files", addedFileUris)
             .build()
 

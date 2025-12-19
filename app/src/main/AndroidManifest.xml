@@ -38,6 +38,14 @@
             android:label="File Browser"
             android:parentActivityName=".ui.MainActivity"/>
 
+        <activity android:name=".ui.DownloadActivity"
+            android:label="Download ISOs"
+            android:parentActivityName=".ui.MainActivity"/>
+
+        <activity android:name=".ui.FormatActivity"
+            android:label="Quick Format"
+            android:parentActivityName=".ui.MainActivity"/>
+
         <!-- WorkManager definition is auto-merged, but good to be aware -->
     </application>
 

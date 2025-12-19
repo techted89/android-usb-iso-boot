@@ -19,6 +19,7 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
         val usbDevice = inputData.getString("usb_device") // /dev/sdX
         val isTargetUefi = inputData.getBoolean("is_uefi", true) // Originally named is_uefi in ViewModel
         val isGpt = inputData.getBoolean("is_gpt", true)
+        val persistenceGb = inputData.getInt("persistence_gb", 0)
         val addedFiles = inputData.getStringArray("added_files")
 
         if (isoUriString == null || usbDevice == null) {
@@ -56,20 +57,35 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                 fdiskScript.append("g\n")
 
                 if (isTargetUefi) {
-                    // UEFI Standard: ESP + Data
-                    // Part 1: ESP (100MB) - Type 1 (EFI System) in GPT fdisk usually
+                    // UEFI Standard: ESP + Data (+ Persistence)
+                    // Part 1: ESP (100MB)
                     fdiskScript.append("n\n").append("1\n").append("\n").append("+100M\n")
-                    fdiskScript.append("t\n").append("1\n").append("1\n") // Type 1 = EFI System (check fdisk version codes, often 1 or ef00)
+                    fdiskScript.append("t\n").append("1\n").append("1\n")
 
-                    // Part 2: Data
-                    fdiskScript.append("n\n").append("2\n").append("\n").append("\n")
-                    // Type 2 = Microsoft Basic Data (default)
+                    // Part 2: Data (If persistence, size limited; else all)
+                    fdiskScript.append("n\n").append("2\n").append("\n")
+                    if (persistenceGb > 0) {
+                        fdiskScript.append("-${persistenceGb}G\n")
+                    } else {
+                        fdiskScript.append("\n")
+                    }
+
+                    // Part 3: Persistence (If enabled)
+                    if (persistenceGb > 0) {
+                         fdiskScript.append("n\n").append("3\n").append("\n").append("\n")
+                         // Type? Linux Filesystem (default)
+                    }
 
                     fdiskScript.append("w\n")
                 } else {
-                     // GPT for Legacy (BIOS Boot Partition required for GRUB usually, but Windows just needs Data)
-                     // We will just create one big data partition for simplicity if they chose GPT+Legacy (rare)
-                     fdiskScript.append("n\n").append("1\n").append("\n").append("\n")
+                     // GPT for Legacy
+                     fdiskScript.append("n\n").append("1\n").append("\n")
+                     if (persistenceGb > 0) {
+                        fdiskScript.append("-${persistenceGb}G\n")
+                        fdiskScript.append("n\n").append("2\n").append("\n").append("\n")
+                     } else {
+                        fdiskScript.append("\n")
+                     }
                      fdiskScript.append("w\n")
                 }
             } else {
@@ -83,14 +99,31 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                     fdiskScript.append("t\n").append("1\n").append("ef\n") // ef = EFI
 
                     // Part 2: Data
-                    fdiskScript.append("n\n").append("p\n").append("2\n").append("\n").append("\n")
+                    fdiskScript.append("n\n").append("p\n").append("2\n").append("\n")
+                     if (persistenceGb > 0) {
+                        fdiskScript.append("-${persistenceGb}G\n")
+                    } else {
+                        fdiskScript.append("\n")
+                    }
                     fdiskScript.append("a\n").append("2\n") // Bootable
+
+                    // Part 3: Persistence
+                    if (persistenceGb > 0) {
+                        fdiskScript.append("n\n").append("p\n").append("3\n").append("\n").append("\n")
+                    }
 
                     fdiskScript.append("w\n")
                 } else {
                     // Standard Legacy MBR
-                    fdiskScript.append("n\n").append("p\n").append("1\n").append("\n").append("\n")
-                    fdiskScript.append("a\n").append("1\n")
+                    fdiskScript.append("n\n").append("p\n").append("1\n").append("\n")
+                     if (persistenceGb > 0) {
+                        fdiskScript.append("-${persistenceGb}G\n")
+                        fdiskScript.append("a\n").append("1\n")
+                        fdiskScript.append("n\n").append("p\n").append("2\n").append("\n").append("\n")
+                     } else {
+                        fdiskScript.append("\n")
+                        fdiskScript.append("a\n").append("1\n")
+                     }
                     fdiskScript.append("w\n")
                 }
             }
@@ -112,9 +145,14 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
             // Handle partition naming (mmcblk0 -> mmcblk0p1 vs sdb -> sdb1)
             val part1 = if (usbDevice.contains("mmcblk") || usbDevice.contains("nvme")) "${usbDevice}p1" else "${usbDevice}1"
             val part2 = if (usbDevice.contains("mmcblk") || usbDevice.contains("nvme")) "${usbDevice}p2" else "${usbDevice}2"
+            val part3 = if (usbDevice.contains("mmcblk") || usbDevice.contains("nvme")) "${usbDevice}p3" else "${usbDevice}3"
 
             // Logic: If Dual Partition (Target UEFI + GPT OR Target UEFI + Hybrid MBR)
             val isDualPartition = (isTargetUefi && isGpt) || (isTargetUefi && !isGpt)
+
+            // Format Persistence if needed
+            // Determine which partition index is persistence
+            var persistencePart: String? = null
 
             if (isDualPartition) {
                 // Format ESP
@@ -122,9 +160,19 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
 
                 // Format Data
                 checkSuccess(exec("mkfs.ext4 $part2"), "Failed to format Data partition ($part2)")
+
+                if (persistenceGb > 0) persistencePart = part3
             } else {
                 // Single Partition (Legacy MBR or GPT-Data-Only)
                 checkSuccess(exec("mkfs.vfat -F 32 $part1"), "Failed to format partition ($part1)")
+
+                if (persistenceGb > 0) persistencePart = part2
+            }
+
+            if (persistencePart != null) {
+                updateProgress(45, "Formatting Persistence Partition...")
+                // mkfs.ext4 -L casper-rw
+                checkSuccess(exec("mkfs.ext4 -L casper-rw $persistencePart"), "Failed to format Persistence ($persistencePart)")
             }
 
             // 5. Mounting
