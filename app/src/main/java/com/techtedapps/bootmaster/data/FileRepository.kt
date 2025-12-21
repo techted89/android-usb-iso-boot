@@ -11,9 +11,55 @@ data class FileItem(
 
 class FileRepository {
 
-    private val baseMountPath = "/data/local/tmp/bootmaster_mnt/usb_data"
+    private val baseMountPath = "/data/local/tmp/bootmaster_browser_mnt"
+    private var isMounted = false
+
+    fun mountUsb(devicePath: String): Boolean {
+        if (isMounted) return true
+
+        // Ensure mount point exists
+        ShellUtils.executeRootCommand("mkdir -p $baseMountPath")
+
+        // Guess partition: try 1, then p1 (for nvme/mmc)
+        // Ideally we scan partitions, but simple guess works for 90%
+        val part1 = "${devicePath}1"
+        val partP1 = "${devicePath}p1"
+
+        // Try mount part1
+        var res = ShellUtils.executeRootCommand("mount $part1 $baseMountPath")
+        if (res.exitCode == 0) {
+            isMounted = true
+            return true
+        }
+
+        // Try mount p1
+        res = ShellUtils.executeRootCommand("mount $partP1 $baseMountPath")
+        if (res.exitCode == 0) {
+            isMounted = true
+            return true
+        }
+
+        // Try main device (rare, superfloppy)
+        res = ShellUtils.executeRootCommand("mount $devicePath $baseMountPath")
+        if (res.exitCode == 0) {
+             isMounted = true
+             return true
+        }
+
+        return false
+    }
+
+    fun unmountUsb() {
+        if (isMounted) {
+            ShellUtils.executeRootCommand("umount $baseMountPath")
+            // ShellUtils.executeRootCommand("rm -rf $baseMountPath") // Optional cleanup
+            isMounted = false
+        }
+    }
 
     fun listFiles(relativePath: String = ""): List<FileItem> {
+        if (!isMounted) return emptyList()
+
         val targetPath = if (relativePath.isEmpty()) baseMountPath else "$baseMountPath/$relativePath"
         val items = mutableListOf<FileItem>()
 

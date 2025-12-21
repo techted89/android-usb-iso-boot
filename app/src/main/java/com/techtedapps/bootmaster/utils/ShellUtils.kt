@@ -27,6 +27,7 @@ object ShellUtils {
 
     /**
      * Executes a command as root.
+     * Redirects stderr to stdout to avoid deadlocks on large output.
      */
     fun executeRootCommand(command: String): CommandResult {
         var process: Process? = null
@@ -37,24 +38,27 @@ object ShellUtils {
         try {
             process = Runtime.getRuntime().exec("su")
             os = DataOutputStream(process.outputStream)
-            os.writeBytes(command + "\n")
+            // Redirect stderr to stdout using 2>&1
+            // Note: This merges stdout and stderr. If distinct error parsing is needed,
+            // proper threaded stream reading is required.
+            // For this app, preventing deadlock is priority.
+            // We append 2>&1 to the command execution line.
+            // However, since we are feeding into 'su' shell, we wrap the command.
+            os.writeBytes("$command 2>&1\n")
             os.writeBytes("exit\n")
             os.flush()
 
             val stdInput = BufferedReader(InputStreamReader(process.inputStream))
-            val stdError = BufferedReader(InputStreamReader(process.errorStream))
+            // Only read stdout (which now contains stderr)
 
             var s: String?
             while (stdInput.readLine().also { s = it } != null) {
                 if (s != null) output.add(s!!)
             }
-            while (stdError.readLine().also { s = it } != null) {
-                if (s != null) error.add(s!!)
-            }
 
             process.waitFor()
         } catch (e: Exception) {
-            error.add(e.message ?: "Unknown error")
+            output.add("Exception: ${e.message}")
         } finally {
             try {
                 os?.close()
@@ -67,7 +71,7 @@ object ShellUtils {
         return CommandResult(
             exitCode = process?.exitValue() ?: -1,
             output = output,
-            error = error
+            error = output // Map full output to error as well for debugging if exitCode != 0
         )
     }
 }

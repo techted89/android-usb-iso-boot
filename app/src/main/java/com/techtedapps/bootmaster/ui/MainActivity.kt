@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
         uri?.let {
             contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             viewModel.selectIso(it)
+            updateFormatInfo(it)
         }
     }
 
@@ -104,7 +105,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.btnSelectIso.setOnClickListener {
-            selectIsoLauncher.launch(arrayOf("application/x-iso9660-image", "application/octet-stream", "*/*"))
+            // Allow .iso, .img, .bin, .zip, .gz, .xz
+            selectIsoLauncher.launch(arrayOf(
+                "application/x-iso9660-image",
+                "application/octet-stream",
+                "application/zip",
+                "application/x-gzip",
+                "application/x-xz",
+                "*/*"
+            ))
         }
 
         binding.btnDownloadIso.setOnClickListener {
@@ -124,7 +133,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnFileBrowser.setOnClickListener {
-            startActivity(Intent(this, FileBrowserActivity::class.java))
+            val selectedDrive = binding.spinnerUsbDrives.selectedItem as? UsbDrive
+            if (selectedDrive == null) {
+                Toast.makeText(this, "Select a drive first", Toast.LENGTH_SHORT).show()
+            } else {
+                val intent = Intent(this, FileBrowserActivity::class.java)
+                intent.putExtra("drive_path", selectedDrive.path)
+                startActivity(intent)
+            }
         }
 
         binding.btnCreate.setOnClickListener {
@@ -182,5 +198,52 @@ class MainActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
         })
+    }
+
+    private fun updateFormatInfo(uri: Uri) {
+        val path = uri.path ?: ""
+        val filename = path.substringAfterLast('/')
+        val ext = filename.substringAfterLast('.', "").lowercase()
+
+        // Default visibility
+        binding.rgTargetSystem.visibility = android.view.View.VISIBLE
+        binding.rgPartitionScheme.visibility = android.view.View.VISIBLE
+        binding.cbPersistence.visibility = android.view.View.VISIBLE
+
+        when (ext) {
+            "img", "bin", "dsk" -> {
+                binding.tvBootInfo.text = "Format: Raw Disk Image (.img)\n" +
+                        "Description: Writes a complete disk image bit-by-bit.\n" +
+                        "Targets: Raspberry Pi, Embedded Systems, some Linux Distros (Arch, Manjaro).\n" +
+                        "Note: Overwrites partition table. Persistence and Scheme settings ignored."
+
+                // Hide incompatible options
+                binding.rgTargetSystem.visibility = android.view.View.GONE
+                binding.rgPartitionScheme.visibility = android.view.View.GONE
+                binding.cbPersistence.visibility = android.view.View.GONE
+            }
+            "zip" -> {
+                binding.tvBootInfo.text = "Format: Archive (.zip)\n" +
+                        "Description: Extracts contents to the drive.\n" +
+                        "Targets: Windows Installers (manual), some Linux tools.\n" +
+                        "Note: Requires existing partition or app will format as FAT32."
+            }
+            "gz", "xz" -> {
+                 binding.tvBootInfo.text = "Format: Compressed Image (.$ext)\n" +
+                        "Description: Decompresses and writes raw image on-the-fly.\n" +
+                        "Targets: Raspberry Pi images, lightweight Linux distros.\n" +
+                        "Note: Overwrites partition table."
+
+                 binding.rgTargetSystem.visibility = android.view.View.GONE
+                 binding.rgPartitionScheme.visibility = android.view.View.GONE
+                 binding.cbPersistence.visibility = android.view.View.GONE
+            }
+            else -> {
+                // ISO or unknown
+                binding.tvBootInfo.text = "Format: ISO Image\n" +
+                        "Description: Standard bootable image format.\n" +
+                        "Targets: Windows, Linux (Ubuntu, Fedora, etc.), Rescue Tools."
+            }
+        }
     }
 }

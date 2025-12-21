@@ -56,10 +56,34 @@ class FileBrowserActivity : AppCompatActivity() {
             pickFileLauncher.launch(arrayOf("*/*"))
         }
 
-        // Handle Back for navigation
-        // (Simplified: real app would override onBackPressed properly)
+        val drivePath = intent.getStringExtra("drive_path")
+        if (drivePath != null) {
+            mountAndLoad(drivePath)
+        } else {
+            Toast.makeText(this, "No drive specified", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+    }
 
-        loadFiles()
+    override fun onDestroy() {
+        super.onDestroy()
+        // Run unmount in background to avoid strict mode, though usually safe in onDestroy for simple app
+        CoroutineScope(Dispatchers.IO).launch {
+            repo.unmountUsb()
+        }
+    }
+
+    private fun mountAndLoad(drivePath: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val success = repo.mountUsb(drivePath)
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    loadFiles()
+                } else {
+                    Toast.makeText(this@FileBrowserActivity, "Failed to mount $drivePath", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     override fun onBackPressed() {
