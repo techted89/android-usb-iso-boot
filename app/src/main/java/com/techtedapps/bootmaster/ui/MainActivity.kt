@@ -3,6 +3,7 @@ package com.techtedapps.bootmaster.ui
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.app.AlertDialog
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -13,6 +14,7 @@ import androidx.work.WorkInfo
 import com.techtedapps.bootmaster.R
 import com.techtedapps.bootmaster.data.UsbDrive
 import com.techtedapps.bootmaster.databinding.ActivityMainBinding
+import com.techtedapps.bootmaster.utils.ShellUtils
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,11 +44,24 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        checkRootAccess()
+
         setupObservers()
         setupListeners()
 
         // Initial refresh
         viewModel.refreshDrives()
+    }
+
+    private fun checkRootAccess() {
+        if (!ShellUtils.isRootAvailable()) {
+            AlertDialog.Builder(this)
+                .setTitle("Root Access Required")
+                .setMessage("BootMaster requires Root access to perform low-level disk operations (partitioning, formatting, writing). Please root your device or grant permission.")
+                .setPositiveButton("Exit") { _, _ -> finish() }
+                .setCancelable(false)
+                .show()
+        }
     }
 
     private fun setupObservers() {

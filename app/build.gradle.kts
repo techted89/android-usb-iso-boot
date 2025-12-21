@@ -5,25 +5,41 @@ plugins {
 
 android {
     namespace = "com.techtedapps.bootmaster"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.techtedapps.bootmaster"
         minSdk = 33 // Android 13.0 - As per requirements
-        targetSdk = 33
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("../keystore.properties")
+            if (keystoreFile.exists()) {
+                val props = java.util.Properties()
+                props.load(java.io.FileInputStream(keystoreFile))
+                storeFile = file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
