@@ -12,6 +12,8 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.techtedapps.bootmaster.data.UsbDrive
 import com.techtedapps.bootmaster.data.UsbRepository
+import com.techtedapps.bootmaster.utils.IsoSuggestion
+import com.techtedapps.bootmaster.utils.SmartDetector
 import com.techtedapps.bootmaster.workers.BootableUsbWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,6 +29,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedIsoUri = MutableLiveData<Uri?>()
     val selectedIsoUri: LiveData<Uri?> = _selectedIsoUri
 
+    private val _isoSuggestion = MutableLiveData<IsoSuggestion>()
+    val isoSuggestion: LiveData<IsoSuggestion> = _isoSuggestion
+
     private val _addedFiles = MutableLiveData<List<Uri>>()
     val addedFiles: LiveData<List<Uri>> = _addedFiles
 
@@ -40,8 +45,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectIso(uri: Uri) {
+    fun selectIso(uri: Uri, filename: String?) {
         _selectedIsoUri.value = uri
+        val suggestion = SmartDetector.detect(uri, filename)
+        _isoSuggestion.value = suggestion
     }
 
     fun addFiles(uris: List<Uri>) {

@@ -22,8 +22,9 @@ class MainActivity : AppCompatActivity() {
     private val selectIsoLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let {
             contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            viewModel.selectIso(it)
-            updateFormatInfo(it)
+            val filename = uri.path?.substringAfterLast('/')
+            viewModel.selectIso(it, filename)
+            // updateFormatInfo(it) -> Moved to Observer
         }
     }
 
@@ -61,6 +62,48 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.addedFiles.observe(this) { files ->
             binding.tvAddedFiles.text = "${files.size} additional files added"
+        }
+
+        viewModel.isoSuggestion.observe(this) { suggestion ->
+            // Update UI based on Smart Detection
+            binding.tvBootInfo.text = "Detected: ${suggestion.detectedName}\n${suggestion.description}"
+
+            if (suggestion.isDdMode) {
+                // DD Mode
+                binding.rgTargetSystem.visibility = android.view.View.GONE
+                binding.rgPartitionScheme.visibility = android.view.View.GONE
+                binding.cbPersistence.visibility = android.view.View.GONE
+            } else {
+                // ISO Mode
+                binding.rgTargetSystem.visibility = android.view.View.VISIBLE
+                binding.rgPartitionScheme.visibility = android.view.View.VISIBLE
+                binding.cbPersistence.visibility = android.view.View.VISIBLE
+
+                // Auto-Select Buttons (User can override)
+                when(suggestion.targetSystem) {
+                    com.techtedapps.bootmaster.utils.TargetSystem.UEFI -> binding.rbTargetUefi.isChecked = true
+                    com.techtedapps.bootmaster.utils.TargetSystem.LEGACY -> binding.rbTargetLegacy.isChecked = true
+                    else -> {}
+                }
+
+                when(suggestion.partitionScheme) {
+                    com.techtedapps.bootmaster.utils.PartitionScheme.GPT -> binding.rbSchemeGpt.isChecked = true
+                    com.techtedapps.bootmaster.utils.PartitionScheme.MBR -> binding.rbSchemeMbr.isChecked = true
+                    else -> {}
+                }
+
+                // Persistence
+                if (suggestion.supportsPersistence) {
+                    binding.cbPersistence.isEnabled = true
+                    binding.cbPersistence.text = "Enable Persistence (Recommended for this Linux)"
+                } else {
+                    binding.cbPersistence.isChecked = false
+                    binding.cbPersistence.isEnabled = false // Or just leave enabled but warned
+                    binding.cbPersistence.text = "Enable Persistence (Not supported/Unknown)"
+                }
+            }
+
+            Toast.makeText(this, "Optimized settings for ${suggestion.detectedName}", Toast.LENGTH_SHORT).show()
         }
 
         viewModel.outputWorkInfos.observe(this) { workInfos ->
@@ -200,50 +243,5 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun updateFormatInfo(uri: Uri) {
-        val path = uri.path ?: ""
-        val filename = path.substringAfterLast('/')
-        val ext = filename.substringAfterLast('.', "").lowercase()
-
-        // Default visibility
-        binding.rgTargetSystem.visibility = android.view.View.VISIBLE
-        binding.rgPartitionScheme.visibility = android.view.View.VISIBLE
-        binding.cbPersistence.visibility = android.view.View.VISIBLE
-
-        when (ext) {
-            "img", "bin", "dsk" -> {
-                binding.tvBootInfo.text = "Format: Raw Disk Image (.img)\n" +
-                        "Description: Writes a complete disk image bit-by-bit.\n" +
-                        "Targets: Raspberry Pi, Embedded Systems, some Linux Distros (Arch, Manjaro).\n" +
-                        "Note: Overwrites partition table. Persistence and Scheme settings ignored."
-
-                // Hide incompatible options
-                binding.rgTargetSystem.visibility = android.view.View.GONE
-                binding.rgPartitionScheme.visibility = android.view.View.GONE
-                binding.cbPersistence.visibility = android.view.View.GONE
-            }
-            "zip" -> {
-                binding.tvBootInfo.text = "Format: Archive (.zip)\n" +
-                        "Description: Extracts contents to the drive.\n" +
-                        "Targets: Windows Installers (manual), some Linux tools.\n" +
-                        "Note: Requires existing partition or app will format as FAT32."
-            }
-            "gz", "xz" -> {
-                 binding.tvBootInfo.text = "Format: Compressed Image (.$ext)\n" +
-                        "Description: Decompresses and writes raw image on-the-fly.\n" +
-                        "Targets: Raspberry Pi images, lightweight Linux distros.\n" +
-                        "Note: Overwrites partition table."
-
-                 binding.rgTargetSystem.visibility = android.view.View.GONE
-                 binding.rgPartitionScheme.visibility = android.view.View.GONE
-                 binding.cbPersistence.visibility = android.view.View.GONE
-            }
-            else -> {
-                // ISO or unknown
-                binding.tvBootInfo.text = "Format: ISO Image\n" +
-                        "Description: Standard bootable image format.\n" +
-                        "Targets: Windows, Linux (Ubuntu, Fedora, etc.), Rescue Tools."
-            }
-        }
-    }
+    // updateFormatInfo removed - replaced by SmartDetector logic in ViewModel Observer
 }
