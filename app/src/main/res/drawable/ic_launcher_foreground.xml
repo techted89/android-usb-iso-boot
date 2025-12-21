@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- USB Drive Body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M39,34 h30 v40 h-30 z" />
+    <!-- USB Connector (Metal part) -->
+    <path
+        android:fillColor="#CCCCCC"
+        android:pathData="M44,74 h20 v12 h-20 z" />
+    <!-- USB Connector Contacts -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M47,78 h2 v6 h-2 z M53,78 h2 v6 h-2 z M59,78 h2 v6 h-2 z" />
+
+    <!-- Crown -->
+    <path
+        android:fillColor="#FFD700"
+        android:strokeColor="#B8860B"
+        android:strokeWidth="1"
+        android:pathData="M34,34 L34,18 L44,26 L54,14 L64,26 L74,18 L74,34 Z" />
+    <!-- Crown Jewels -->
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M54,18 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+</vector>

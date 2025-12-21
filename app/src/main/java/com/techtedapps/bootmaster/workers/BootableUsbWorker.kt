@@ -132,24 +132,28 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                     // g: create a new empty GPT partition table
                     fdiskScript.append("g\n")
 
+                    // Calculate ISO Size for Partitioning
+                    val isoSizeMb = (isoFile!!.length() / (1024 * 1024)) + 500 // +500MB buffer
+
                     if (isTargetUefi) {
                         // UEFI Standard: ESP + Data (+ Persistence)
                         // Part 1: ESP (100MB)
                         fdiskScript.append("n\n").append("1\n").append("\n").append("+100M\n")
                         fdiskScript.append("t\n").append("1\n").append("1\n")
 
-                        // Part 2: Data (If persistence, size limited; else all)
+                        // Part 2: Data
                         fdiskScript.append("n\n").append("2\n").append("\n")
                         if (persistenceGb > 0) {
-                            fdiskScript.append("-${persistenceGb}G\n")
+                            // If persistence enabled, size Data partition to fit ISO + buffer
+                            fdiskScript.append("+${isoSizeMb}M\n")
                         } else {
+                            // Else take all remaining
                             fdiskScript.append("\n")
                         }
 
-                        // Part 3: Persistence (If enabled)
+                        // Part 3: Persistence (If enabled, takes remaining)
                         if (persistenceGb > 0) {
                              fdiskScript.append("n\n").append("3\n").append("\n").append("\n")
-                             // Type? Linux Filesystem (default)
                         }
 
                         fdiskScript.append("w\n")
@@ -157,7 +161,8 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                          // GPT for Legacy
                          fdiskScript.append("n\n").append("1\n").append("\n")
                          if (persistenceGb > 0) {
-                            fdiskScript.append("-${persistenceGb}G\n")
+                            fdiskScript.append("+${isoSizeMb}M\n")
+                            // Persistence gets remainder
                             fdiskScript.append("n\n").append("2\n").append("\n").append("\n")
                          } else {
                             fdiskScript.append("\n")
@@ -177,7 +182,7 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                         // Part 2: Data
                         fdiskScript.append("n\n").append("p\n").append("2\n").append("\n")
                          if (persistenceGb > 0) {
-                            fdiskScript.append("-${persistenceGb}G\n")
+                        fdiskScript.append("+${isoSizeMb}M\n")
                         } else {
                             fdiskScript.append("\n")
                         }
@@ -193,7 +198,7 @@ class BootableUsbWorker(context: Context, params: WorkerParameters) : Worker(con
                         // Standard Legacy MBR
                         fdiskScript.append("n\n").append("p\n").append("1\n").append("\n")
                          if (persistenceGb > 0) {
-                            fdiskScript.append("-${persistenceGb}G\n")
+                        fdiskScript.append("+${isoSizeMb}M\n")
                             fdiskScript.append("a\n").append("1\n")
                             fdiskScript.append("n\n").append("p\n").append("2\n").append("\n").append("\n")
                          } else {
